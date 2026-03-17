@@ -45,6 +45,7 @@ def print_summary(ds: MoonsDataset) -> None:
     """Pretty-print summary statistics for a dataset split."""
     s = summary_stats(ds)
     print(f"=== {s['name']} ({s['n_samples']} samples, {s['n_classes']} classes) ===")
+    print(f"  Dataset shape: {ds.x.shape}")
     print(f"  Class counts: {s['class_counts']}")
     g = s["global"]
     print(f"  x1: mean={g['mean'][0]:.3f}, std={g['std'][0]:.3f}, range=[{g['min'][0]:.3f}, {g['max'][0]:.3f}]")
