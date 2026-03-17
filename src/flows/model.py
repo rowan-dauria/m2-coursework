@@ -111,3 +111,68 @@ class Flow(nn.Module):
         # log p(z) under standard normal
         log_pz = -0.5 * (self.dim * math.log(2 * math.pi) + (z**2).sum(dim=-1))
         return log_pz + log_det_inv
+
+
+class SurgeryFlow(Flow):
+    """Flow with an appended shear transformation.
+
+    Extends a trained Flow by composing its sampling map f0 with a deterministic
+    shear g_alpha, giving a new sampling map f_alpha[z] = g_alpha(f0[z]) and a
+    corresponding density p_alpha[x] via the change-of-variables formula.
+
+    The shear map is:
+        g_alpha([x1, x2]) = [x1 + alpha * x2, x2]
+
+    whose Jacobian has determinant 1 (log-det = 0) for all alpha.
+
+    Args:
+        dim: Dimensionality of the data (must be even).
+        hidden: Hidden width of each coupling layer MLP.
+        n_layers: Number of coupling layers K (must be even).
+        alpha: Shear parameter. alpha=0 recovers the original flow exactly.
+    """
+
+    def __init__(self, dim=2, hidden=128, n_layers=8, alpha=0.0):
+        # Initialise the parent Flow class with the standard config
+        super().__init__(dim=dim, hidden=hidden, n_layers=n_layers)
+        self.alpha = alpha
+
+    def forward(self, z):
+        # 1. Pass through the trained flow via the parent class forward hook
+        x0, log_det_f0 = super().forward(z)
+
+        # 2. Append your deterministic map
+        x, log_det_g = self._map(x0, self.alpha)
+
+        # 3. Combine log-determinants
+        return x, log_det_f0 + log_det_g
+
+    def inverse(self, x):
+        # 1. Pass through the inverse of the deterministic map
+        x0, log_det_g_inv = self._inv_map(x, self.alpha)
+
+        # 2. Pass through the trained flow inverse via parent class
+        z, log_det_f0_inv = super().inverse(x0)
+
+        # 3. Combine log-determinants
+        return z, log_det_g_inv + log_det_f0_inv
+
+    def _map(self, z: torch.Tensor, alpha: float):
+        z1, z2 = z.chunk(2, dim=-1)
+        # perform shear transformation
+        x1 = z1 + alpha * z2
+        x2 = z2
+
+        x = torch.cat((x1, x2), dim=-1)
+        log_det = torch.zeros(x.shape[0])
+        return x, log_det
+
+    def _inv_map(self, x: torch.Tensor, alpha: float):
+        x1, x2 = x.chunk(2, dim=1)
+        # perform inverse shear transformation
+        z1 = x1 - alpha * x2
+        z2 = x2
+
+        z = torch.cat((z1, z2), dim=-1)
+        log_det = torch.zeros(z.shape[0])
+        return z, log_det

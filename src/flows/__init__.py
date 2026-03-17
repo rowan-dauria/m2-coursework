@@ -1,5 +1,5 @@
 from flows.data import MoonsDataset, MoonsSplits
-from flows.model import AffineCouplingLayer, Flow
+from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
 from flows.correctness import check_invertibility, check_logdet, figure1c
 from flows.explore import full_report, summary_stats, print_summary, ks_test_splits, print_ks_test
 from flows.viz import (
@@ -19,6 +19,7 @@ from flows.viz import (
 __all__ = [
     "AffineCouplingLayer",
     "Flow",
+    "SurgeryFlow",
     "MoonsDataset",
     "MoonsSplits",
     "check_invertibility",
