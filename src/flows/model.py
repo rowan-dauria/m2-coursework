@@ -32,6 +32,7 @@ class AffineCouplingLayer(nn.Module):
         """Run the MLP and return (t, s) with s bounded by tanh."""
         out = self.net(h_masked)
         t, s = out.chunk(2, dim=-1)
+        # bound s with tanh for numerical stability
         s = torch.tanh(s)
         return t, s
 
