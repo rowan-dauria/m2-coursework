@@ -1,6 +1,7 @@
 from flows.data import MoonsDataset, MoonsSplits
 from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
 from flows.correctness import check_invertibility, check_logdet, figure1c
+from flows.profile import count_flops
 from flows.explore import full_report, summary_stats, print_summary, ks_test_splits, print_ks_test
 from flows.viz import (
     scatter,
@@ -41,4 +42,5 @@ __all__ = [
     "radial_from_centroids",
     "qq_splits",
     "base_density_overlay",
+    "count_flops",
 ]
