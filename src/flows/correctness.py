@@ -30,15 +30,17 @@ def check_invertibility(flow: Flow, x: torch.Tensor) -> tuple[float, torch.Tenso
     recon_errors : torch.Tensor
         Per-sample max absolute error, shape (N,).
     """
-    flow.eval()
+    flow_d = flow.double()
+    flow_d.eval()
+    x_d = x.double()
     with torch.no_grad():
         # encode the entire training set
-        z, _ = flow.inverse(x)
+        z, _ = flow_d.inverse(x_d)
         # decode the data
-        x_hat, _ = flow.forward(z)
+        x_hat, _ = flow_d.forward(z)
         # extract the peak inversion error
-        recon_errors = (x - x_hat).abs().max(dim=-1).values
-    return recon_errors.max().item(), recon_errors
+        recon_errors = (x_d - x_hat).abs().max(dim=-1).values
+    return recon_errors.max().item(), recon_errors.float()
 
 
 def check_logdet(flow: Flow, x0: torch.Tensor, eps: float = 1e-4) -> dict:
@@ -57,24 +59,26 @@ def check_logdet(flow: Flow, x0: torch.Tensor, eps: float = 1e-4) -> dict:
     -------
     dict with keys: analytic_logdet, numerical_logdet, abs_error, jacobian.
     """
-    flow.eval()
-    dim = x0.shape[-1]
+    flow_d = flow.double()
+    flow_d.eval()
+    x0_d = x0.double()
+    dim = x0_d.shape[-1]
 
     # Analytic log-det from our inverse
     with torch.no_grad():
-        _, analytic_log_det = flow.inverse(x0)
+        _, analytic_log_det = flow_d.inverse(x0_d)
         analytic_log_det = analytic_log_det.item()
 
     # Numerical Jacobian by central differences
-    J = torch.zeros(dim, dim)
+    J = torch.zeros(dim, dim, dtype=torch.float64)
     # iterate along elements of x0 (x0_1 and x0_2)
     for j in range(dim):
-        e_j = torch.zeros(1, dim)
+        e_j = torch.zeros(1, dim, dtype=torch.float64)
         e_j[0, j] = eps
         with torch.no_grad():
             # calculate change in both z1 and z2 relative to x0_j
-            z_plus, _ = flow.inverse(x0 + e_j)
-            z_minus, _ = flow.inverse(x0 - e_j)
+            z_plus, _ = flow_d.inverse(x0_d + e_j)
+            z_minus, _ = flow_d.inverse(x0_d - e_j)
         # squeeze removes the batch dimension
         J[:, j] = (z_plus - z_minus).squeeze() / (2 * eps)
 
