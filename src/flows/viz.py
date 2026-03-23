@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from matplotlib.patches import Ellipse
 from scipy.stats import multivariate_normal
 
@@ -346,5 +347,49 @@ def class_balance_bar(
     ax.set_ylabel("count")
     ax.set_title("Class balance across splits")
     ax.legend()
+    fig.tight_layout()
+    return fig
+
+
+def figure1c(
+    recon_errors: torch.Tensor,
+    max_abs_error: float,
+    jacobian: torch.Tensor,
+    logdet_abs_error: float,
+    figsize: tuple[float, float] = (10, 4),
+) -> Figure:
+    """Two-panel diagnostic figure for Q1(c).
+
+    Panel 1: per-sample reconstruction error.
+    Panel 2: numerical Jacobian heatmap.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+    # Panel 1: reconstruction error per sample
+    axes[0].plot(recon_errors.numpy(), ".", markersize=2)
+    axes[0].set_xlabel("Sample index")
+    axes[0].set_ylabel("Max absolute error")
+    axes[0].set_title(f"Invertibility (max = {max_abs_error:.2e})")
+    axes[0].axhline(max_abs_error, color="r", linestyle="--", linewidth=0.8)
+
+    # Panel 2: Jacobian heatmap
+    J_np = jacobian.numpy()
+    im = axes[1].imshow(J_np, aspect="equal")
+    for i in range(J_np.shape[0]):
+        for j in range(J_np.shape[1]):
+            axes[1].text(
+                j, i, f"{J_np[i, j]:.4f}", ha="center", va="center",
+                color="black", fontsize=11, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white", alpha=0.8),
+            )
+    axes[1].set_title(
+        f"Numerical Jacobian of $f^{{-1}}$\nlog-det error = {logdet_abs_error:.2e}"
+    )
+    axes[1].set_xlabel("Input dim")
+    axes[1].set_ylabel("Output dim")
+    axes[1].set_xticks([0, 1])
+    axes[1].set_yticks([0, 1])
+    fig.colorbar(im, ax=axes[1])
+
     fig.tight_layout()
     return fig

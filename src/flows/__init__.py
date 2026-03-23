@@ -1,6 +1,6 @@
 from flows.data import MoonsDataset, MoonsSplits
 from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
-from flows.correctness import check_invertibility, check_logdet, figure1c
+from flows.correctness import check_invertibility, check_logdet
 from flows.profile import count_flops
 from flows.train import evaluate_nll, train_flow, save_checkpoint, save_training_curves
 from flows.explore import full_report, summary_stats, print_summary, ks_test_splits, print_ks_test
@@ -16,6 +16,7 @@ from flows.viz import (
     radial_from_centroids,
     qq_splits,
     base_density_overlay,
+    figure1c,
 )
 
 __all__ = [
