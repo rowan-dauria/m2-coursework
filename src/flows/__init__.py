@@ -3,6 +3,14 @@ from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
 from flows.correctness import check_invertibility, check_logdet
 from flows.profile import count_flops
 from flows.train import evaluate_nll, train_flow, save_checkpoint, save_training_curves
+from flows.sanity import (
+    expected_initial_nll,
+    gaussian_baseline_nll,
+    check_initial_loss,
+    check_beats_baseline,
+    check_stable_start,
+    run_all_sanity_checks,
+)
 from flows.explore import full_report, summary_stats, print_summary, ks_test_splits, print_ks_test
 from flows.viz import (
     scatter,
@@ -49,4 +57,10 @@ __all__ = [
     "train_flow",
     "save_checkpoint",
     "save_training_curves",
+    "expected_initial_nll",
+    "gaussian_baseline_nll",
+    "check_initial_loss",
+    "check_beats_baseline",
+    "check_stable_start",
+    "run_all_sanity_checks",
 ]
