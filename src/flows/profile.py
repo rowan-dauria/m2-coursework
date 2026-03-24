@@ -11,3 +11,15 @@ def count_flops_alt(*, dim: int, n_layers: int, hidden: int, batch_size: int) ->
     return batch_size * n_layers * (hidden * (3 * dim + 1) + 12 * dim) + batch_size * (n_layers + 20)
 
 
+def print_flop_table(configs: list[dict], count_fn=count_flops) -> None:
+    """Print a formatted table of FLOP counts for a list of configurations.
+
+    Each entry in *configs* must be a dict with keys ``dim``, ``n_layers``,
+    ``hidden``, and ``batch_size``.
+    """
+    print(f"\n{'dim':>4}  {'K':>3}  {'H':>4}  {'B':>5}  {'FLOPs':>12}")
+    print("-" * 36)
+    for cfg in configs:
+        flops = count_fn(**cfg)
+        print(f"{cfg['dim']:>4}  {cfg['n_layers']:>3}  {cfg['hidden']:>4}  "
+              f"{cfg['batch_size']:>5}  {flops:>12,}")

@@ -1,5 +1,7 @@
 """Coupling flow model components."""
 
+from __future__ import annotations
+
 import math
 
 import torch
@@ -176,3 +178,46 @@ class SurgeryFlow(Flow):
         z = torch.cat((z1, z2), dim=-1)
         log_det = torch.zeros(z.shape[0])
         return z, log_det
+
+
+def load_surgery_models(
+    alpha_values: list[float],
+    checkpoint_path: str = "checkpoints/flow_full.pt",
+) -> dict[float, SurgeryFlow]:
+    """Load a trained checkpoint and build a :class:`SurgeryFlow` for each alpha.
+
+    Returns a dict mapping each alpha value to its eval-mode model.
+    """
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    config = checkpoint["config"]
+    models: dict[float, SurgeryFlow] = {}
+    for a in alpha_values:
+        m = SurgeryFlow(
+            dim=config["dim"],
+            hidden=config["hidden"],
+            n_layers=config["n_layers"],
+            alpha=a,
+        )
+        m.load_state_dict(checkpoint["state_dict"])
+        m.eval()
+        models[a] = m
+    print("Loaded SurgeryFlow for alpha values:", alpha_values)
+    return models
+
+
+def generate_samples(
+    models: dict[float, SurgeryFlow],
+    n_samples: int = 1000,
+    dim: int = 2,
+) -> dict[float, torch.Tensor]:
+    """Generate samples from each SurgeryFlow model.
+
+    Returns a dict mapping each alpha value to a ``(n_samples, dim)`` tensor.
+    """
+    samples: dict[float, torch.Tensor] = {}
+    with torch.no_grad():
+        for a, model in models.items():
+            z = torch.randn(n_samples, dim)
+            x, _ = model.forward(z)
+            samples[a] = x
+    return samples

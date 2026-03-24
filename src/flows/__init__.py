@@ -1,8 +1,18 @@
 from flows.data import MoonsDataset, MoonsSplits, NormaliseStats
-from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
+from flows.model import AffineCouplingLayer, Flow, SurgeryFlow, load_surgery_models, generate_samples
 from flows.correctness import check_invertibility, check_logdet
-from flows.profile import count_flops
-from flows.train import evaluate_nll, train_flow, save_checkpoint, save_training_curves, print_ablation_summary
+from flows.profile import count_flops, count_flops_alt, print_flop_table
+from flows.train import (
+    evaluate_nll,
+    train_flow,
+    save_checkpoint,
+    save_training_curves,
+    print_ablation_summary,
+    update_results,
+    run_ablation,
+    run_hp_scan,
+    print_scan_results,
+)
 from flows.sanity import (
     expected_initial_nll,
     gaussian_baseline_nll,
@@ -54,11 +64,19 @@ __all__ = [
     "covariance_ellipses",
     "qq_splits",
     "count_flops",
+    "count_flops_alt",
+    "print_flop_table",
     "evaluate_nll",
     "train_flow",
     "save_checkpoint",
     "save_training_curves",
     "print_ablation_summary",
+    "update_results",
+    "run_ablation",
+    "run_hp_scan",
+    "print_scan_results",
+    "load_surgery_models",
+    "generate_samples",
     "expected_initial_nll",
     "gaussian_baseline_nll",
     "check_initial_loss",

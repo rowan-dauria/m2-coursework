@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import json
 import os
 from typing import Any
@@ -205,6 +206,133 @@ def save_training_curves(
     with open(path, "w") as f:
         json.dump(curves, f)
     print(f"Saved training curves to {path}")
+
+
+def update_results(
+    updates: dict[str, Any],
+    path: str = "results.json",
+) -> dict[str, Any]:
+    """Merge *updates* into a JSON results file (creating it if needed).
+
+    Top-level keys in *updates* are merged into the existing dict; nested
+    values are replaced wholesale.  Returns the full merged dict.
+    """
+    if os.path.exists(path):
+        with open(path) as f:
+            results = json.load(f)
+    else:
+        results = {}
+    results.update(updates)
+    with open(path, "w") as f:
+        json.dump(results, f, indent=2)
+    return results
+
+
+def run_ablation(
+    configs: list[tuple[str, float, float]],
+    x_train: torch.Tensor,
+    x_val: torch.Tensor,
+    x_test: torch.Tensor,
+    *,
+    dim: int,
+    hidden: int,
+    n_layers: int,
+    n_steps: int,
+    lr: float,
+    seed: int,
+) -> list[dict[str, Any]]:
+    """Train one model per regularisation config and evaluate each.
+
+    Parameters
+    ----------
+    configs : list of (label, clip_norm, weight_decay) tuples
+    """
+    results: list[dict[str, Any]] = []
+    for label, clip_norm, wd in configs:
+        torch.manual_seed(seed)
+        model = Flow(dim=dim, hidden=hidden, n_layers=n_layers)
+        result = train_flow(
+            model, x_train, x_val,
+            n_steps=n_steps,
+            lr=lr,
+            weight_decay=wd,
+            grad_clip_norm=clip_norm,
+            use_cosine_schedule=True,
+            early_stopping_patience=1000,
+            log_every=0,
+        )
+        val_nll = evaluate_nll(model, x_val)
+        test_nll = evaluate_nll(model, x_test)
+        steps_used = len(result["train_losses"])
+        results.append({
+            "label": label,
+            "model": model,
+            "result": result,
+            "val_nll": val_nll,
+            "test_nll": test_nll,
+            "clip_norm": clip_norm,
+            "weight_decay": wd,
+        })
+        print(f"  {label:20s}  val={val_nll:.4f}  steps={steps_used}")
+    return results
+
+
+def run_hp_scan(
+    scan_lrs: list[float],
+    scan_hiddens: list[int],
+    scan_layers: list[int],
+    x_train: torch.Tensor,
+    x_val: torch.Tensor,
+    *,
+    dim: int,
+    n_steps: int,
+    weight_decay: float,
+    grad_clip_norm: float,
+    seed: int,
+    early_stopping_patience: int = 500,
+) -> list[dict[str, Any]]:
+    """Grid search over (lr, hidden, n_layers).
+
+    Returns results sorted by validation NLL (best first).
+    """
+    results: list[dict[str, Any]] = []
+    for lr, hidden, n_layers in itertools.product(scan_lrs, scan_hiddens, scan_layers):
+        torch.manual_seed(seed)
+        model = Flow(dim=dim, hidden=hidden, n_layers=n_layers)
+        result = train_flow(
+            model, x_train, x_val,
+            n_steps=n_steps,
+            lr=lr,
+            weight_decay=weight_decay,
+            grad_clip_norm=grad_clip_norm,
+            use_cosine_schedule=True,
+            early_stopping_patience=early_stopping_patience,
+            log_every=0,
+        )
+        val_nll = evaluate_nll(model, x_val)
+        steps_used = len(result["train_losses"])
+        results.append({
+            "lr": lr,
+            "hidden": hidden,
+            "n_layers": n_layers,
+            "val_nll": val_nll,
+            "train_nll": result["final_train_nll"],
+            "steps": steps_used,
+        })
+        print(f"  lr={lr:.0e}  H={hidden:>3}  K={n_layers}  val={val_nll:.4f}  steps={steps_used}")
+    results.sort(key=lambda r: r["val_nll"])
+    return results
+
+
+def print_scan_results(scan_results: list[dict[str, Any]], top_n: int = 10) -> None:
+    """Print a ranked table of hyperparameter scan results."""
+    print("\n" + "=" * 70)
+    print(f"{'Rank':>4}  {'LR':>8}  {'H':>4}  {'K':>2}  {'Val NLL':>9}  {'Train NLL':>10}  {'Steps':>6}")
+    print("-" * 70)
+    for i, r in enumerate(scan_results[:top_n]):
+        print(f"{i+1:>4}  {r['lr']:>8.0e}  {r['hidden']:>4}  {r['n_layers']:>2}  "
+              f"{r['val_nll']:>9.4f}  {r['train_nll']:>10.4f}  {r['steps']:>6}")
+    print("=" * 70)
 
 
 def print_ablation_summary(
