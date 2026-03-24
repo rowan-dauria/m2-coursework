@@ -205,3 +205,25 @@ def save_training_curves(
     with open(path, "w") as f:
         json.dump(curves, f)
     print(f"Saved training curves to {path}")
+
+
+def print_ablation_summary(
+    ablation_results: list[dict[str, Any]],
+    best: dict[str, Any],
+    naive_train_nll: float | None = None,
+    naive_val_nll: float | None = None,
+    naive_steps: int = 10000,
+) -> None:
+    """Print a formatted summary table of ablation results."""
+    print("\n" + "=" * 75)
+    print(f"{'Config':20s}  {'Train NLL':>10}  {'Val NLL':>10}  {'Test NLL':>10}  {'Steps':>6}")
+    print("-" * 75)
+    if naive_train_nll is not None:
+        naive_val_str = f"{naive_val_nll:>10.4f}" if naive_val_nll is not None else f"{'--':>10}"
+        print(f"{'Naive (no reg.)':20s}  {naive_train_nll:>10.4f}  {naive_val_str}  {'--':>10}  {naive_steps:>6}")
+    for ab in ablation_results:
+        steps = len(ab["result"]["train_losses"])
+        marker = "  <-- best" if ab is best else ""
+        print(f"{ab['label']:20s}  {ab['result']['final_train_nll']:>10.4f}  "
+              f"{ab['val_nll']:>10.4f}  {ab['test_nll']:>10.4f}  {steps:>6}{marker}")
+    print("=" * 75)

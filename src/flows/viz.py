@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.patches import Ellipse
-from scipy.stats import multivariate_normal
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -46,51 +45,6 @@ def scatter_splits(splits: MoonsSplits, figsize: tuple[float, float] = (14, 4)) 
     fig, axes = plt.subplots(1, 3, figsize=figsize)
     for ax, ds in zip(axes, [splits.train, splits.val, splits.test]):
         scatter(ds, ax=ax)
-    fig.tight_layout()
-    return fig
-
-
-def marginal_histograms(
-    ds: MoonsDataset,
-    bins: int = 40,
-    figsize: tuple[float, float] = (10, 4),
-) -> Figure:
-    """Per-class marginal histograms for x1 and x2."""
-    x = ds.x.numpy()
-    labels = ds.labels.numpy()
-    fig, axes = plt.subplots(1, 2, figsize=figsize)
-    for i, name in enumerate(["$x_1$", "$x_2$"]):
-        for c in np.unique(labels):
-            axes[i].hist(
-                x[labels == c, i],
-                bins=bins,
-                alpha=0.5,
-                label=f"class {c}",
-                color=CLASS_COLOURS[c],
-                density=True,
-            )
-        axes[i].set_xlabel(name)
-        axes[i].set_ylabel("density")
-        axes[i].legend()
-        axes[i].set_title(f"{ds.name} — {name} marginal")
-    fig.tight_layout()
-    return fig
-
-
-def joint_kde(
-    ds: MoonsDataset,
-    gridsize: int = 80,
-    figsize: tuple[float, float] = (6, 5),
-) -> Figure:
-    """Hexbin density estimate of the joint distribution."""
-    x = ds.x.numpy()
-    fig, ax = plt.subplots(figsize=figsize)
-    hb = ax.hexbin(x[:, 0], x[:, 1], gridsize=gridsize, cmap="viridis", mincnt=1)
-    ax.set_xlabel("$x_1$")
-    ax.set_ylabel("$x_2$")
-    ax.set_title(f"{ds.name} — joint density")
-    ax.set_aspect("equal")
-    fig.colorbar(hb, ax=ax, label="count")
     fig.tight_layout()
     return fig
 
@@ -208,47 +162,6 @@ def covariance_ellipses(
     return fig
 
 
-def radial_from_centroids(
-    ds: MoonsDataset,
-    figsize: tuple[float, float] = (10, 4),
-) -> Figure:
-    """Histogram of distances from each point to its class centroid."""
-    x = ds.x.numpy()
-    labels = ds.labels.numpy()
-    fig, axes = plt.subplots(1, 2, figsize=figsize)
-
-    for c in np.unique(labels):
-        mask = labels == c
-        xc = x[mask]
-        centroid = xc.mean(axis=0)
-        dists = np.linalg.norm(xc - centroid, axis=1)
-        axes[0].hist(dists, bins=25, alpha=0.5, label=f"class {c}",
-                     color=CLASS_COLOURS[c], density=True)
-
-    axes[0].set_xlabel("Distance from class centroid")
-    axes[0].set_ylabel("density")
-    axes[0].set_title(f"{ds.name} — radial distance distribution")
-    axes[0].legend()
-
-    # Polar-style: angle from centroid vs distance
-    for c in np.unique(labels):
-        mask = labels == c
-        xc = x[mask]
-        centroid = xc.mean(axis=0)
-        delta = xc - centroid
-        angles = np.arctan2(delta[:, 1], delta[:, 0])
-        dists = np.linalg.norm(delta, axis=1)
-        axes[1].scatter(angles, dists, s=8, alpha=0.5, color=CLASS_COLOURS[c], label=f"class {c}")
-
-    axes[1].set_xlabel("Angle from centroid (rad)")
-    axes[1].set_ylabel("Distance from centroid")
-    axes[1].set_title(f"{ds.name} — angular structure")
-    axes[1].legend()
-
-    fig.tight_layout()
-    return fig
-
-
 def qq_splits(
     splits: MoonsSplits,
     figsize: tuple[float, float] = (10, 4),
@@ -280,46 +193,6 @@ def qq_splits(
         axes[i].legend()
         axes[i].set_aspect("equal")
 
-    fig.tight_layout()
-    return fig
-
-
-def base_density_overlay(
-    ds: MoonsDataset,
-    figsize: tuple[float, float] = (7, 6),
-) -> Figure:
-    """Scatter of data with standard normal density contours overlaid.
-
-    Shows the gap between the data distribution and the base N(0,I)
-    that the flow must bridge.
-    """
-    x = ds.x.numpy()
-    labels = ds.labels.numpy()
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # Data scatter
-    for c in np.unique(labels):
-        mask = labels == c
-        ax.scatter(x[mask, 0], x[mask, 1], s=10, alpha=0.5,
-                   color=CLASS_COLOURS[c], label=f"class {c}")
-
-    # Standard normal contours
-    pad = 0.5
-    lo = min(x[:, 0].min(), x[:, 1].min(), -3) - pad
-    hi = max(x[:, 0].max(), x[:, 1].max(), 3) + pad
-    grid = np.linspace(lo, hi, 200)
-    X, Y = np.meshgrid(grid, grid)
-    pos = np.stack([X.ravel(), Y.ravel()], axis=-1)
-    Z = multivariate_normal(mean=[0, 0], cov=np.eye(2)).pdf(pos).reshape(X.shape)
-
-    contour = ax.contour(X, Y, Z, levels=6, cmap="Greys", alpha=0.6, linewidths=1)
-    ax.clabel(contour, inline=True, fontsize=7, fmt="%.3f")
-
-    ax.set_xlabel("$x_1$")
-    ax.set_ylabel("$x_2$")
-    ax.set_title(f"{ds.name} — data vs base density $\\mathcal{{N}}(0, I)$")
-    ax.legend()
-    ax.set_aspect("equal")
     fig.tight_layout()
     return fig
 
@@ -416,48 +289,38 @@ def figure2a(
 
 
 def figure2c(
-    ablation_results: list[dict],
-    best_label: str,
-    naive_losses: list[float],
-    naive_val_losses: list[float],
-    figsize: tuple[float, float] = (15, 4),
+    train_losses: list[float],
+    val_losses: list[float],
+    best_val_step: int | None = None,
+    title: str = "Q2(c): Full training + validation curves",
+    figsize: tuple[float, float] = (8, 5),
 ) -> Figure:
-    """Three-panel regularisation ablation figure for Q2(c).
+    """Single-panel training curve figure for Q2(c).
 
     Parameters
     ----------
-    ablation_results : list[dict]
-        Each dict must have keys ``label`` (str) and ``result`` (dict
-        with ``train_losses``, ``val_losses``, and optionally
-        ``best_val_step``).
-    best_label : str
-        The ``label`` of the best ablation config (drawn bold).
-    naive_losses, naive_val_losses : list[float]
-        Baseline (no-regularisation) curves shown faintly behind each panel.
+    train_losses : list[float]
+        Per-step training NLL.
+    val_losses : list[float]
+        Per-step validation NLL.
+    best_val_step : int or None
+        If provided, draw a vertical line at this step.
+    title : str
+        Figure title.
     """
-    n_panels = len(ablation_results)
-    fig, axes = plt.subplots(1, n_panels, figsize=figsize, sharey=True)
-
-    for ax, ab in zip(axes, ablation_results):
-        r = ab["result"]
-        # Naive baseline as faint background
-        ax.plot(naive_losses, color="grey", alpha=0.2, label="Naive train")
-        ax.plot(naive_val_losses, color="grey", alpha=0.2, linestyle="--", label="Naive val")
-        # Ablation curves
-        ax.plot(r["train_losses"], color="C0", label="Train")
-        ax.plot(r["val_losses"], color="C1", label="Val")
-        if "best_val_step" in r:
-            ax.axvline(
-                x=r["best_val_step"], color="red", linestyle=":", alpha=0.7,
-                label=f"Best val (step {r['best_val_step'] + 1})",
-            )
-        ax.set_title(ab["label"], fontweight="bold" if ab["label"] == best_label else "normal")
-        ax.set_xlabel("Step")
-        ax.legend(fontsize=7, loc="upper right")
-        ax.grid(True, alpha=0.3)
-
-    axes[0].set_ylabel("NLL")
-    fig.suptitle("Q2(c): Regularisation ablation (naive baseline in grey)")
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.plot(train_losses, color="C0", alpha=0.7, label="Train NLL")
+    ax.plot(val_losses, color="C1", alpha=0.7, label="Val NLL")
+    if best_val_step is not None:
+        ax.axvline(
+            x=best_val_step, color="red", linestyle=":", alpha=0.7,
+            label=f"Best val (step {best_val_step + 1})",
+        )
+    ax.set_xlabel("Step")
+    ax.set_ylabel("NLL")
+    ax.set_title(title)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return fig
 
