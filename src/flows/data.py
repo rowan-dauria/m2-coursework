@@ -54,3 +54,34 @@ class MoonsSplits:
 
     def all_labels(self) -> torch.Tensor:
         return torch.cat([self.train.labels, self.val.labels, self.test.labels])
+
+    def normalise(self) -> NormaliseStats:
+        """Standardise all splits using training-set statistics.
+
+        Transforms each split in-place so that the training features
+        have zero mean and unit variance.  Returns a ``NormaliseStats``
+        object that can undo the transformation.
+        """
+        mean = self.train.x.mean(dim=0)
+        std = self.train.x.std(dim=0)
+
+        for ds in (self.train, self.val, self.test):
+            ds.x = (ds.x - mean) / std
+
+        return NormaliseStats(mean=mean, std=std)
+
+
+@dataclass
+class NormaliseStats:
+    """Stores the mean and std used to standardise the data."""
+
+    mean: torch.Tensor  # (D,)
+    std: torch.Tensor  # (D,)
+
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
+        """Standardise *x* using the stored statistics."""
+        return (x - self.mean) / self.std
+
+    def inverse(self, x: torch.Tensor) -> torch.Tensor:
+        """Map standardised *x* back to the original scale."""
+        return x * self.std + self.mean

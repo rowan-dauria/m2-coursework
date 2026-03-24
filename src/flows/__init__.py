@@ -1,4 +1,4 @@
-from flows.data import MoonsDataset, MoonsSplits
+from flows.data import MoonsDataset, MoonsSplits, NormaliseStats
 from flows.model import AffineCouplingLayer, Flow, SurgeryFlow
 from flows.correctness import check_invertibility, check_logdet
 from flows.profile import count_flops
@@ -37,6 +37,7 @@ __all__ = [
     "SurgeryFlow",
     "MoonsDataset",
     "MoonsSplits",
+    "NormaliseStats",
     "check_invertibility",
     "check_logdet",
     "figure1c",

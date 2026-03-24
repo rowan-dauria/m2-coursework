@@ -397,7 +397,6 @@ def figure1c(
 
 def figure2a(
     train_losses: list[float],
-    val_losses: list[float],
     figsize: tuple[float, float] = (6, 4),
 ) -> Figure:
     """Training curve figure for Q2(a): tiny-subset training.
@@ -405,16 +404,8 @@ def figure2a(
     Plots train and validation NLL over steps, with a vertical line
     at the step where validation NLL is minimised.
     """
-    min_loss = min(val_losses)
-    min_idx = int(np.argmin(val_losses))
-
     fig, ax = plt.subplots(figsize=figsize)
-    ax.axvline(
-        x=min_idx, color="red", linestyle="--",
-        label=f"Min val NLL = {min_loss:.3f} (step {min_idx})",
-    )
     ax.plot(train_losses, label="Train NLL", alpha=0.7)
-    ax.plot(val_losses, label="Val NLL", alpha=0.7)
     ax.set_xlabel("Step")
     ax.set_ylabel("NLL")
     ax.set_title("Q2(a): Tiny subset (128 samples) training curve")
