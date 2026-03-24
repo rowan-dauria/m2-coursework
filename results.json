@@ -4,9 +4,9 @@
     "logdet_finite_diff_abs_error": 1.4444390128431905e-09
   },
   "training": {
-    "tinyset_final_nll": 1.3252731561660767,
-    "final_train_nll": 0.18473970890045166,
-    "final_val_nll": 0.8669617176055908,
-    "final_test_nll": 0.8562338352203369
+    "tinyset_final_nll": 1.3486486673355103,
+    "final_train_nll": 0.2154577225446701,
+    "final_val_nll": 0.4030556380748749,
+    "final_test_nll": 0.4779569208621979
   }
 }
