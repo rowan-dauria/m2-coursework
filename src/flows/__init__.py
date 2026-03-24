@@ -25,6 +25,10 @@ from flows.viz import (
     qq_splits,
     base_density_overlay,
     figure1c,
+    figure2a,
+    figure2c,
+    samples_vs_data,
+    figure3b,
 )
 
 __all__ = [
@@ -36,6 +40,10 @@ __all__ = [
     "check_invertibility",
     "check_logdet",
     "figure1c",
+    "figure2a",
+    "figure2c",
+    "samples_vs_data",
+    "figure3b",
     "full_report",
     "summary_stats",
     "print_summary",

@@ -393,3 +393,185 @@ def figure1c(
 
     fig.tight_layout()
     return fig
+
+
+def figure2a(
+    train_losses: list[float],
+    val_losses: list[float],
+    figsize: tuple[float, float] = (6, 4),
+) -> Figure:
+    """Training curve figure for Q2(a): tiny-subset training.
+
+    Plots train and validation NLL over steps, with a vertical line
+    at the step where validation NLL is minimised.
+    """
+    min_loss = min(val_losses)
+    min_idx = int(np.argmin(val_losses))
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axvline(
+        x=min_idx, color="red", linestyle="--",
+        label=f"Min val NLL = {min_loss:.3f} (step {min_idx})",
+    )
+    ax.plot(train_losses, label="Train NLL", alpha=0.7)
+    ax.plot(val_losses, label="Val NLL", alpha=0.7)
+    ax.set_xlabel("Step")
+    ax.set_ylabel("NLL")
+    ax.set_title("Q2(a): Tiny subset (128 samples) training curve")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return fig
+
+
+def figure2c(
+    ablation_results: list[dict],
+    best_label: str,
+    naive_losses: list[float],
+    naive_val_losses: list[float],
+    figsize: tuple[float, float] = (15, 4),
+) -> Figure:
+    """Three-panel regularisation ablation figure for Q2(c).
+
+    Parameters
+    ----------
+    ablation_results : list[dict]
+        Each dict must have keys ``label`` (str) and ``result`` (dict
+        with ``train_losses``, ``val_losses``, and optionally
+        ``best_val_step``).
+    best_label : str
+        The ``label`` of the best ablation config (drawn bold).
+    naive_losses, naive_val_losses : list[float]
+        Baseline (no-regularisation) curves shown faintly behind each panel.
+    """
+    n_panels = len(ablation_results)
+    fig, axes = plt.subplots(1, n_panels, figsize=figsize, sharey=True)
+
+    for ax, ab in zip(axes, ablation_results):
+        r = ab["result"]
+        # Naive baseline as faint background
+        ax.plot(naive_losses, color="grey", alpha=0.2, label="Naive train")
+        ax.plot(naive_val_losses, color="grey", alpha=0.2, linestyle="--", label="Naive val")
+        # Ablation curves
+        ax.plot(r["train_losses"], color="C0", label="Train")
+        ax.plot(r["val_losses"], color="C1", label="Val")
+        if "best_val_step" in r:
+            ax.axvline(
+                x=r["best_val_step"], color="red", linestyle=":", alpha=0.7,
+                label=f"Best val (step {r['best_val_step'] + 1})",
+            )
+        ax.set_title(ab["label"], fontweight="bold" if ab["label"] == best_label else "normal")
+        ax.set_xlabel("Step")
+        ax.legend(fontsize=7, loc="upper right")
+        ax.grid(True, alpha=0.3)
+
+    axes[0].set_ylabel("NLL")
+    fig.suptitle("Q2(c): Regularisation ablation (naive baseline in grey)")
+    fig.tight_layout()
+    return fig
+
+
+def samples_vs_data(
+    generated: torch.Tensor,
+    train_data: torch.Tensor,
+    train_labels: torch.Tensor | None = None,
+    figsize: tuple[float, float] = (10, 4),
+) -> Figure:
+    """Side-by-side comparison of generated flow samples and training data.
+
+    Left panel: training data (coloured by class if labels provided).
+    Right panel: samples drawn from the flow.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+
+    # Left: training data
+    x = train_data.numpy()
+    if train_labels is not None:
+        labels = train_labels.numpy()
+        for c in np.unique(labels):
+            mask = labels == c
+            axes[0].scatter(
+                x[mask, 0], x[mask, 1], s=8, alpha=0.5,
+                color=CLASS_COLOURS[c], label=f"class {c}",
+            )
+        axes[0].legend(markerscale=2)
+    else:
+        axes[0].scatter(x[:, 0], x[:, 1], s=8, alpha=0.5, color="C0")
+    axes[0].set_title("Training data")
+    axes[0].set_xlabel("$x_1$")
+    axes[0].set_ylabel("$x_2$")
+    axes[0].set_aspect("equal")
+
+    # Right: generated samples
+    g = generated.numpy()
+    axes[1].scatter(g[:, 0], g[:, 1], s=8, alpha=0.5, color="C2")
+    axes[1].set_title(f"Generated samples (n={len(g)})")
+    axes[1].set_xlabel("$x_1$")
+    axes[1].set_ylabel("$x_2$")
+    axes[1].set_aspect("equal")
+
+    fig.tight_layout()
+    return fig
+
+
+def figure3b(
+    samples: dict[int | float, torch.Tensor],
+    train_data: torch.Tensor,
+    train_labels: torch.Tensor | None = None,
+    figsize: tuple[float, float] = (15, 10),
+) -> Figure:
+    """2x3 panel figure for Q3(b): flow surgery samples.
+
+    Top-left panel shows the original training distribution for reference.
+    Remaining panels show generated samples for each alpha value, with the
+    training data underlaid in grey.
+
+    Parameters
+    ----------
+    samples : dict
+        Mapping from alpha value to a ``[N, 2]`` tensor of generated samples.
+    train_data : Tensor[N, 2]
+        Training data points, underlaid on every surgery panel.
+    train_labels : Tensor[N] or None
+        Class labels for colouring the training-data panel.
+    """
+    alphas = sorted(samples.keys())
+    fig, axes = plt.subplots(2, 3, figsize=figsize)
+    axes_flat = axes.flatten()
+
+    # First panel: original training data
+    ax0 = axes_flat[0]
+    x = train_data.numpy()
+    if train_labels is not None:
+        labels = train_labels.numpy()
+        for c in np.unique(labels):
+            mask = labels == c
+            ax0.scatter(
+                x[mask, 0], x[mask, 1], s=8, alpha=0.5,
+                color=CLASS_COLOURS[c], label=f"class {c}",
+            )
+        ax0.legend(markerscale=2, fontsize=7)
+    else:
+        ax0.scatter(x[:, 0], x[:, 1], s=8, alpha=0.5, color="C0")
+    ax0.set_title("Training data")
+    ax0.set_xlabel("$x_1$")
+    ax0.set_ylabel("$x_2$")
+    ax0.set_aspect("equal")
+
+    # Remaining panels: surgery samples with training data underlay
+    for ax, a in zip(axes_flat[1:], alphas):
+        ax.scatter(x[:, 0], x[:, 1], s=4, alpha=0.15, color="grey", zorder=1)
+        s = samples[a].numpy()
+        ax.scatter(s[:, 0], s[:, 1], s=5, alpha=0.4, zorder=2)
+        ax.set_title(f"$\\alpha = {a}$")
+        ax.set_xlabel("$x_1$")
+        ax.set_ylabel("$x_2$")
+        ax.set_aspect("equal")
+
+    # Hide any unused axes
+    for ax in axes_flat[1 + len(alphas):]:
+        ax.set_visible(False)
+
+    fig.suptitle("Generated samples from $p_\\alpha(x)$")
+    fig.tight_layout()
+    return fig
