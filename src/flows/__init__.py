@@ -11,7 +11,9 @@ from flows.train import (
     update_results,
     run_ablation,
     run_hp_scan,
+    run_optuna_scan,
     print_scan_results,
+    print_optuna_results,
 )
 from flows.sanity import (
     expected_initial_nll,
@@ -74,7 +76,9 @@ __all__ = [
     "update_results",
     "run_ablation",
     "run_hp_scan",
+    "run_optuna_scan",
     "print_scan_results",
+    "print_optuna_results",
     "load_surgery_models",
     "generate_samples",
     "expected_initial_nll",

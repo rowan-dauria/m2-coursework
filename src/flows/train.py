@@ -6,6 +6,7 @@ import copy
 import itertools
 import json
 import os
+from collections.abc import Callable
 from typing import Any
 
 import torch
@@ -37,6 +38,7 @@ def train_flow(
     use_cosine_schedule: bool = False,
     early_stopping_patience: int | None = None,
     log_every: int = 500,
+    step_callback: Callable[[int, float], None] | None = None,
 ) -> dict[str, Any]:
     """Train a normalising flow by minimising the mean NLL.
 
@@ -118,6 +120,9 @@ def train_flow(
         if x_val is not None:
             val_nll = evaluate_nll(model, x_val)
             val_losses.append(val_nll)
+
+            if step_callback is not None:
+                step_callback(step, val_nll)
 
         # --- early stopping bookkeeping ---
         if use_early_stopping and val_nll is not None:
@@ -333,6 +338,115 @@ def print_scan_results(scan_results: list[dict[str, Any]], top_n: int = 10) -> N
         print(f"{i+1:>4}  {r['lr']:>8.0e}  {r['hidden']:>4}  {r['n_layers']:>2}  "
               f"{r['val_nll']:>9.4f}  {r['train_nll']:>10.4f}  {r['steps']:>6}")
     print("=" * 70)
+
+
+def run_optuna_scan(
+    x_train: torch.Tensor,
+    x_val: torch.Tensor,
+    *,
+    dim: int,
+    n_steps: int = 10_000,
+    seed: int = 42,
+    n_trials: int = 40,
+    lr_range: tuple[float, float] = (5e-5, 3e-4),
+    hidden_choices: tuple[int, ...] = (32, 64, 128),
+    n_layers_range: tuple[int, int] = (4, 8),
+    grad_clip_range: tuple[float, float] = (0.5, 5.0),
+    weight_decay_range: tuple[float, float] = (1e-6, 1e-2),
+    early_stopping_patience: int = 500,
+    prune_report_interval: int = 200,
+) -> tuple[dict[str, Any], Any]:
+    """Bayesian hyperparameter optimisation using Optuna.
+
+    Searches over learning rate, hidden width, number of layers,
+    gradient clip norm, and weight decay.  Uses a TPE sampler with
+    median pruning for efficiency.
+
+    Returns ``(best_params, study)`` where *best_params* is a dict
+    with keys ``lr``, ``hidden``, ``n_layers``, ``grad_clip_norm``,
+    ``weight_decay`` and *study* is the Optuna study object.
+    """
+    import optuna
+
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+    def objective(trial: optuna.Trial) -> float:
+        lr = trial.suggest_float("lr", *lr_range, log=True)
+        hidden = trial.suggest_categorical("hidden", list(hidden_choices))
+        n_layers = trial.suggest_int("n_layers", *n_layers_range)
+        grad_clip_norm = trial.suggest_float("grad_clip_norm", *grad_clip_range, log=True)
+        weight_decay = trial.suggest_float("weight_decay", *weight_decay_range, log=True)
+
+        torch.manual_seed(seed)
+        model = Flow(dim=dim, hidden=hidden, n_layers=n_layers)
+
+        def _pruning_callback(step: int, val_nll: float) -> None:
+            if step % prune_report_interval == 0:
+                trial.report(val_nll, step)
+                if trial.should_prune():
+                    raise optuna.TrialPruned()
+
+        train_flow(
+            model, x_train, x_val,
+            n_steps=n_steps,
+            lr=lr,
+            weight_decay=weight_decay,
+            grad_clip_norm=grad_clip_norm,
+            use_cosine_schedule=True,
+            early_stopping_patience=early_stopping_patience,
+            log_every=0,
+            step_callback=_pruning_callback,
+        )
+
+        return evaluate_nll(model, x_val)
+
+    study = optuna.create_study(
+        direction="minimize",
+        sampler=optuna.samplers.TPESampler(seed=seed),
+        pruner=optuna.pruners.MedianPruner(
+            n_startup_trials=5,
+            n_warmup_steps=1000,
+        ),
+    )
+    study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
+
+    best = study.best_trial
+    print(
+        f"\nBest trial #{best.number}: val NLL = {best.value:.4f}\n"
+        f"  lr={best.params['lr']:.2e}  H={best.params['hidden']}  "
+        f"K={best.params['n_layers']}  clip={best.params['grad_clip_norm']:.2f}  "
+        f"wd={best.params['weight_decay']:.1e}"
+    )
+    return best.params, study
+
+
+def print_optuna_results(study: Any, top_n: int = 10) -> None:
+    """Print a ranked table of the best completed Optuna trials."""
+    import optuna
+
+    completed = [
+        t for t in study.trials
+        if t.state == optuna.trial.TrialState.COMPLETE
+    ]
+    completed.sort(key=lambda t: t.value)
+
+    n_pruned = sum(
+        1 for t in study.trials
+        if t.state == optuna.trial.TrialState.PRUNED
+    )
+    print(f"\n{len(completed)} completed, {n_pruned} pruned "
+          f"(of {len(study.trials)} total trials)")
+
+    print("\n" + "=" * 78)
+    print(f"{'Rank':>4}  {'LR':>8}  {'H':>4}  {'K':>2}  "
+          f"{'Clip':>6}  {'WD':>8}  {'Val NLL':>9}")
+    print("-" * 78)
+    for i, t in enumerate(completed[:top_n]):
+        p = t.params
+        print(f"{i+1:>4}  {p['lr']:>8.2e}  {p['hidden']:>4}  "
+              f"{p['n_layers']:>2}  {p['grad_clip_norm']:>6.2f}  "
+              f"{p['weight_decay']:>8.1e}  {t.value:>9.4f}")
+    print("=" * 78)
 
 
 def print_ablation_summary(
