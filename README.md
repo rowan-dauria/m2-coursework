@@ -1,6 +1,6 @@
 # Normalising Flows on the Moons Dataset
 
-M2 Deep Learning coursework — implementing affine coupling flows from scratch in PyTorch.
+M2 Deep Learning coursework, implementing affine coupling flows from scratch in PyTorch.
 
 ## Setup
 
@@ -25,7 +25,7 @@ This produces all required outputs: figures, checkpoints, training logs, and `re
 ## Project Structure
 
 ```
-├── coursework.ipynb          # Main notebook — runs the full pipeline
+├── coursework.ipynb          # Main notebook, runs the full pipeline
 ├── writeup.md                # Written response (loaded into results.json)
 ├── best-practices.md         # Training guidelines from L07/L08
 ├── src/flows/

@@ -266,6 +266,7 @@ def run_ablation(
             early_stopping_patience=1000,
             log_every=0,
         )
+        train_nll = evaluate_nll(model, x_train)
         val_nll = evaluate_nll(model, x_val)
         test_nll = evaluate_nll(model, x_test)
         steps_used = len(result["train_losses"])
@@ -278,7 +279,7 @@ def run_ablation(
             "clip_norm": clip_norm,
             "weight_decay": wd,
         })
-        print(f"  {label:20s}  val={val_nll:.4f}  steps={steps_used}")
+        print(f"  {label:20s}  train={train_nll:.4f}  val={val_nll:.4f}  steps={steps_used}")
     return results
 
 
