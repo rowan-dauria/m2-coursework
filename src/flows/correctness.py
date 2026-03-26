@@ -1,4 +1,4 @@
-"""Q1(c) correctness checks — invertibility and log-det verification."""
+"""Q1(c) correctness checks, invertibility and log-det verification."""
 
 from __future__ import annotations
 

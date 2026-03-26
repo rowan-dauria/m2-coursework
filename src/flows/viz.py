@@ -81,7 +81,7 @@ def pairplot(
         axes[i][j].set_xlabel(dim_names[j])
         axes[i][j].set_ylabel(dim_names[i])
 
-    fig.suptitle(f"{ds.name} — pairplot", y=1.01)
+    fig.suptitle(f"{ds.name}, pairplot", y=1.01)
     fig.tight_layout()
     return fig
 
@@ -109,14 +109,14 @@ def knn_distances(
                      color=CLASS_COLOURS[c], density=True)
     axes[0].set_xlabel(f"Mean distance to {k} nearest neighbours")
     axes[0].set_ylabel("density")
-    axes[0].set_title(f"{ds.name} — {k}-NN distance distribution")
+    axes[0].set_title(f"{ds.name}, {k}-NN distance distribution")
     axes[0].legend()
 
     # Scatter coloured by local density (inverse knn distance)
     sc = axes[1].scatter(x[:, 0], x[:, 1], c=knn_dists, s=12, cmap="viridis_r", alpha=0.7)
     axes[1].set_xlabel("$x_1$")
     axes[1].set_ylabel("$x_2$")
-    axes[1].set_title(f"{ds.name} — local density (darker = denser)")
+    axes[1].set_title(f"{ds.name}, local density (darker = denser)")
     axes[1].set_aspect("equal")
     fig.colorbar(sc, ax=axes[1], label=f"mean {k}-NN dist")
 
@@ -155,7 +155,7 @@ def covariance_ellipses(
 
     ax.set_xlabel("$x_1$")
     ax.set_ylabel("$x_2$")
-    ax.set_title(f"{ds.name} — per-class covariance ellipses ({n_std}σ)")
+    ax.set_title(f"{ds.name}, per-class covariance ellipses ({n_std}σ)")
     ax.legend()
     ax.set_aspect("equal")
     fig.tight_layout()
@@ -189,7 +189,7 @@ def qq_splits(
         axes[i].plot([lo, hi], [lo, hi], "k--", linewidth=0.8, alpha=0.5)
         axes[i].set_xlabel(f"Train {name} quantiles")
         axes[i].set_ylabel(f"Other {name} quantiles")
-        axes[i].set_title(f"QQ plot — {name}")
+        axes[i].set_title(f"QQ plot, {name}")
         axes[i].legend()
         axes[i].set_aspect("equal")
 

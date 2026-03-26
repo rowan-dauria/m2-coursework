@@ -1,4 +1,4 @@
-"""Data exploration utilities — summary statistics and diagnostics."""
+"""Data exploration utilities, summary statistics and diagnostics."""
 
 from __future__ import annotations
 
